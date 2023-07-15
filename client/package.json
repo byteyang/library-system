@@ -1,0 +1,21 @@
+{
+  "name": "libiary-system-web",
+  "private": true,
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "element-plus": "^2.3.8",
+    "vue": "^3.3.4",
+    "vue-router": "^4.2.4"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^0.39.7",
+    "@vitejs/plugin-vue": "^4.2.3",
+    "eslint": "^8.45.0",
+    "rollup-plugin-external-globals": "^0.8.0",
+    "sass": "^1.63.6",
+    "vite": "^4.4.0"
+  }
+}
