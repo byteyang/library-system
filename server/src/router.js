@@ -1,6 +1,6 @@
 const { Router } = require('express')
 const jwt = require('jsonwebtoken')
-const { pool } = require('./database')
+const { db } = require('./database')
 const { md5 } = require('./utils')
 
 const router = Router()
@@ -11,15 +11,20 @@ const router = Router()
 router.post('/login', async (req, resp) => {
   const { username, password } = req.body
 
-  const [rows] = await pool.execute('SELECT * FROM ls_user WHERE username = ?', [username])
-  if (!rows.length)
+  const user = await db('ls_user').where('username', username).first()
+  if (!user) {
     return resp.fail('用户名或密码错误')
+  }
 
-  const { password: userPassword, ...rest } = rows[0]
-  if (userPassword !== md5(password))
+  const { password: userPassword, ...rest } = user
+  if (userPassword !== md5(password)) {
     return resp.fail('用户名或密码错误')
+  }
 
-  resp.succeed({ ...rest, token: jwt.sign(rest, process.env.SECRET, { algorithm: 'HS256' }) })
+  resp.succeed({
+    ...rest,
+    token: jwt.sign(rest, process.env.SECRET, { algorithm: 'HS256' }),
+  })
 })
 
 /**
@@ -28,8 +33,8 @@ router.post('/login', async (req, resp) => {
 router.post('/list-book', async (req, resp) => {
   const { role } = req.auth
 
-  const sql = role === 1 ? 'SELECT * FROM ls_book' : 'SELECT * FROM ls_book WHERE borrower = 0'
-  const [rows] = await pool.execute(sql)
+  const rows =
+    role === 1 ? await db('ls_book') : await db('ls_book').where('borrower', 0)
   return resp.succeed(rows)
 })
 
@@ -39,7 +44,7 @@ router.post('/list-book', async (req, resp) => {
 router.post('/list-my-book', async (req, resp) => {
   const { id } = req.auth
 
-  const [rows] = await pool.execute('SELECT * FROM ls_book WHERE borrower = ?', [id])
+  const rows = await db('ls_book').where('borrower', id)
   return resp.succeed(rows)
 })
 
@@ -48,15 +53,15 @@ router.post('/list-my-book', async (req, resp) => {
  */
 router.post('/add-book', async (req, resp) => {
   const { role } = req.auth
-  if (role !== 1)
+  if (role !== 1) {
     return resp.sendStatus(401)
+  }
 
   const { name } = req.body
   try {
-    const [rows] = await pool.execute('INSERT INTO ls_book(name) VALUES (?)', [name])
-    resp.succeed(rows)
-  }
-  catch (error) {
+    const result = await db('ls_book').insert({ name })
+    resp.succeed(result)
+  } catch (error) {
     resp.fail(error.message)
   }
 })
@@ -66,15 +71,15 @@ router.post('/add-book', async (req, resp) => {
  */
 router.post('/edit-book', async (req, resp) => {
   const { role } = req.auth
-  if (role !== 1)
+  if (role !== 1) {
     return resp.sendStatus(401)
+  }
 
   const { id, name } = req.body
   try {
-    const [rows] = await pool.execute('UPDATE ls_book SET name = ? WHERE id = ?', [name, id])
-    resp.succeed(rows)
-  }
-  catch (error) {
+    const result = await db('ls_book').where('id', id).update({ name })
+    resp.succeed(result)
+  } catch (error) {
     resp.fail(error.message)
   }
 })
@@ -84,15 +89,15 @@ router.post('/edit-book', async (req, resp) => {
  */
 router.post('/del-book', async (req, resp) => {
   const { role } = req.auth
-  if (role !== 1)
+  if (role !== 1) {
     return resp.sendStatus(401)
+  }
 
   const { id } = req.body
   try {
-    const [rows] = await pool.execute('DELETE FROM ls_book WHERE id = ?', [id])
-    resp.succeed(rows)
-  }
-  catch (error) {
+    const result = await db('ls_book').where('id', id).del()
+    resp.succeed(result)
+  } catch (error) {
     resp.fail(error.message)
   }
 })
@@ -105,10 +110,11 @@ router.post('/borrow-book', async (req, resp) => {
   const { id: bookId } = req.body
 
   try {
-    const [rows] = await pool.execute('UPDATE ls_book SET borrower = ? WHERE id = ?', [userId, bookId])
-    resp.succeed(rows)
-  }
-  catch (error) {
+    const result = await db('ls_book')
+      .where('id', bookId)
+      .update({ borrower: userId })
+    resp.succeed(result)
+  } catch (error) {
     resp.fail(error.message)
   }
 })
@@ -120,10 +126,9 @@ router.post('/return-book', async (req, resp) => {
   const { id } = req.body
 
   try {
-    const [rows] = await pool.execute('UPDATE ls_book SET borrower = 0 WHERE id = ?', [id])
-    resp.succeed(rows)
-  }
-  catch (error) {
+    const result = await db('ls_book').where('id', id).update({ borrower: 0 })
+    resp.succeed(result)
+  } catch (error) {
     resp.fail(error.message)
   }
 })
